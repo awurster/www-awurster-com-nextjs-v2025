@@ -11,27 +11,6 @@ const about = [
   }
 ];
 
-// const career = [
-//   {
-//     title: "Principal Security Engineer",
-//     company: "Company X",
-//     years: "2022–Present",
-//     description: "Leading security engineering and architecture for cloud-scale systems."
-//   },
-//   {
-//     title: "Security Engineering Lead",
-//     company: "Company Y",
-//     years: "2019–2022",
-//     description: "Managed a team of security engineers, driving secure development practices."
-//   },
-//   {
-//     title: "Senior Security Engineer",
-//     company: "Company Z",
-//     years: "2016–2019",
-//     description: "Designed and implemented security controls for critical infrastructure."
-//   },
-//   // Add more as needed
-// ];
 
 // Generate a random arrangement of Jenga blocks (3 rows x 8 columns)
 function generateBlocks() {
