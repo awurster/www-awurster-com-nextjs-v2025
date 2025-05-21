@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { FaEnvelope, FaLinkedin, FaGithub } from 'react-icons/fa';
 
@@ -69,7 +68,7 @@ const pixelFont: Record<string, number[][]> = {
     [0, 1, 1, 1, 0],
   ],
   t: [
-    [0, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1],
     [0, 0, 1, 0, 0],
     [0, 0, 1, 0, 0],
     [0, 0, 1, 0, 0],
@@ -109,7 +108,7 @@ function PixelName({ name }: { name: string }) {
   const size = Math.floor((totalWidth - (paddedCols - 1)) / paddedCols); // px, size of each pixel
   const gap = 1; // px, gap between pixels
   // Precompute the grid for deterministic rendering
-  let grid: { on: boolean; key: string }[][] = Array.from({ length: paddedRows }, (_, r) =>
+  const grid: { on: boolean; key: string }[][] = Array.from({ length: paddedRows }, (_, r) =>
     Array.from({ length: paddedCols }, (_, c) => {
       // If in the padding, always off
       if (
@@ -133,7 +132,7 @@ function PixelName({ name }: { name: string }) {
     <div className="flex flex-col items-center mt-2">
       {grid.map((row, rowIdx) => (
         <div key={rowIdx} className="flex flex-row" style={{ marginBottom: gap }}>
-          {row.map((cell, colIdx) => (
+          {row.map((cell) => (
             <div
               key={cell.key}
               style={{
@@ -196,12 +195,7 @@ function HeroBlocks({ onClick, isActive }: { onClick?: () => void; isActive?: bo
   );
 }
 
-// Helper for random pale green (Cursor midnight accent)
-const PALE_GREEN = '#7fffd4';
-const DARK_GRAY = '#23232a';
-
 const JENGA_COLORS = ["#23232a", "#35353f", "#18181b", "#2a2a33"];
-const JENGA_LIGHT = '#bdbdbd';
 const FIDGET_GLOW = '#d0e2d6';
 
 function generateRuneGrid(size = 3) {
@@ -220,7 +214,7 @@ function generateColorGrid(size = 3) {
 
 function playTone(freq: number) {
   if (typeof window === 'undefined') return;
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const ctx: AudioContext = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
   const o = ctx.createOscillator();
   const g = ctx.createGain();
   o.type = 'sine';
@@ -295,8 +289,6 @@ function FidgetSpinners() {
 }
 
 export default function Home() {
-  const aboutRef = useRef<HTMLDivElement | null>(null);
-  const contactRef = useRef<HTMLDivElement | null>(null);
   const [showAbout, setShowAbout] = useState(false);
   const [openPanel, setOpenPanel] = useState<null | 'email' | 'linkedin' | 'github'>(null);
 
