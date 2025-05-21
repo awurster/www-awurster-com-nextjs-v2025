@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "npm prune && rm -rf node_modules package-lock.json && npm install && next build && npx @cloudflare/next-on-pages",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postbuild": "rm -rf .next/cache && find .next -type f -size +25M -exec echo 'ERROR: File exceeds 25MB: {}' \\; -exec false {} +"
+    "postbuild": "rm -rf .next/cache && find .next -type f -size +25M -exec echo 'ERROR: File exceeds 25MB: {}' \\; -exec false {} +",
+    "cfpages": "npx @cloudflare/next-on-pages"
   },
   "dependencies": {
     "next": "15.3.2",
@@ -18,9 +19,9 @@
   "devDependencies": {
     "@cloudflare/next-on-pages": "^1.0.0",
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4.0.0",
-    "@types/node": "^20",
-    "@types/react": "^19",
+    "@tailwindcss/postcss": "^4.1.7",
+    "@types/node": "20.17.50",
+    "@types/react": "19.1.4",
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
@@ -29,6 +30,6 @@
     "eslint-config-next": "15.3.2",
     "postcss": "^8.4.38",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "5.8.3"
   }
 }

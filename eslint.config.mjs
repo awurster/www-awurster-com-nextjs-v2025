@@ -2,7 +2,8 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
 import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
+import tsEslintPlugin from '@typescript-eslint/eslint-plugin';
+import tsEslintParser from '@typescript-eslint/parser';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
@@ -17,12 +18,10 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   js.configs.recommended,
-  ...tseslint.configs.recommended,
-  ...tseslint.configs.strict,
   {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
-      parser: tseslint.parser,
+      parser: tsEslintParser,
       parserOptions: {
         project: './tsconfig.json',
         sourceType: 'module',
@@ -33,7 +32,7 @@ const eslintConfig = [
       },
     },
     plugins: {
-      '@typescript-eslint': tseslint.plugin,
+      '@typescript-eslint': tsEslintPlugin,
       'react': react,
       'react-hooks': reactHooks,
     },
@@ -41,7 +40,6 @@ const eslintConfig = [
       // Stricter rules for Cloudflare Pages compatibility
       'no-unused-vars': 'error',
       '@typescript-eslint/no-unused-vars': ['error'],
-      'no-unused-imports': 'error',
       'prefer-const': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
       'react/jsx-uses-react': 'error',

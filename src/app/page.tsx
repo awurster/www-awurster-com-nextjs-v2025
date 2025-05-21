@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { FaEnvelope, FaLinkedin, FaGithub } from 'react-icons/fa';
 
 const about = [
@@ -226,7 +226,7 @@ const activeNotes: { [idx: number]: { ctx: AudioContext, o: OscillatorNode, g: G
 function playToneHold(freq: number, idx: number) {
   if (typeof window === 'undefined') return;
   if (activeNotes[idx]) return; // already playing
-  const ctx: AudioContext = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
+  const ctx: AudioContext = getAudioContext();
   const o = ctx.createOscillator();
   const g = ctx.createGain();
   const f = ctx.createBiquadFilter();
@@ -285,7 +285,7 @@ function FidgetSpinner({ freq, isActive = false, onKeyboardTrigger, idx }: { fre
     } else if (!isActive && typeof idx === 'number') {
       setActive(false);
     }
-  }, [isActive]);
+  }, [isActive, idx, onKeyboardTrigger]);
 
   // For mouse: play note on mouse down, release on mouse up, with long release
   function handleMouseDown() {
@@ -373,7 +373,7 @@ function RectFidgetSpinner({ type, isActive = false, onKeyboardTrigger }: { type
         setTimeout(() => setActive(false), 5000);
       }
     }
-  }, [isActive]);
+  }, [isActive, onKeyboardTrigger, type]);
 
   const handleClick = () => {
     setActive(true);
@@ -389,7 +389,7 @@ function RectFidgetSpinner({ type, isActive = false, onKeyboardTrigger }: { type
   // Ambient bass: long, low, soft sine or triangle, 7s
   function playAmbientBass() {
     if (typeof window === 'undefined') return;
-    const ctx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
+    const ctx = getAudioContext();
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = 'triangle';
@@ -405,14 +405,14 @@ function RectFidgetSpinner({ type, isActive = false, onKeyboardTrigger }: { type
   // Ambient pad: long, rich, ethereal, 5s, multiple detuned voices, lower and softer
   function playAmbientPad() {
     if (typeof window === 'undefined') return;
-    const ctx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
+    const ctx = getAudioContext();
     const baseFreq = 261.63; // C4, lower than before
     const detunes = [-12, -7, 0, 7, 12]; // in cents, for a lush pad
     const oscillators: OscillatorNode[] = [];
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.045, ctx.currentTime); // softer pad
     g.connect(ctx.destination);
-    detunes.forEach((cents, i) => {
+    detunes.forEach((cents) => {
       const o = ctx.createOscillator();
       o.type = 'sine';
       o.frequency.value = baseFreq;
@@ -465,9 +465,9 @@ function RectFidgetSpinner({ type, isActive = false, onKeyboardTrigger }: { type
 
 function FidgetSpinners() {
   // 5 unique tones (C4, D4, E4, G4, A4)
-  const tones = [261.63, 293.66, 329.63, 392.00, 440.00];
+  const tones = useMemo(() => [261.63, 293.66, 329.63, 392.00, 440.00], []);
   // Keyboard mapping: QWERT for tones, S for bass, D for pad
-  const keyMap = ['q', 'w', 'e', 'r', 't', 's', 'd'];
+  const keyMap = useMemo(() => ['q', 'w', 'e', 'r', 't', 's', 'd'], []);
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [rectActive, setRectActive] = useState<'bass' | 'pad' | null>(null);
 
@@ -506,7 +506,7 @@ function FidgetSpinners() {
       // Stop any lingering notes
       Object.keys(activeNotes).forEach(idx => stopToneHold(Number(idx)));
     };
-  }, []);
+  }, [keyMap, tones]);
 
   return (
     <>
@@ -533,7 +533,7 @@ function FidgetSpinners() {
 // Harmonium sound for About section
 function playHarmonium() {
   if (typeof window === 'undefined') return;
-  const ctx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
+  const ctx = getAudioContext();
   if (ctx.state === 'suspended') ctx.resume();
   // Rich C major chord: C3, C4, E4, G4, C5
   const freqs = [130.81, 261.63, 329.63, 392.00, 523.25]; // C3, C4, E4, G4, C5
@@ -553,7 +553,7 @@ function playHarmonium() {
   g.connect(hp);
   hp.connect(lp);
   lp.connect(ctx.destination);
-  freqs.forEach((freq, i) => {
+  freqs.forEach((freq) => {
     // Blend triangle and sine for a soft reed/oboe-like sound
     const o1 = ctx.createOscillator();
     o1.type = 'triangle';
@@ -590,18 +590,22 @@ function playHarmonium() {
   }, (total + 0.05) * 1000);
 }
 
+// 1. Add a type guard for AudioContext
+function getAudioContext(): AudioContext {
+  if (typeof window === 'undefined') throw new Error('No window');
+  if ('AudioContext' in window) {
+    return new window.AudioContext();
+  } else if ('webkitAudioContext' in window) {
+    // @ts-expect-error webkitAudioContext is for Safari support
+    return new window.webkitAudioContext();
+  }
+  throw new Error('No AudioContext available');
+}
+
 export default function Home() {
   const [showAbout, setShowAbout] = useState(false);
   const [openPanel, setOpenPanel] = useState<null | 'email' | 'linkedin' | 'github'>(null);
   const heroRef = useRef<HTMLDivElement>(null);
-
-  // Toggle logic for each panel
-  const handleToggle = (panel: 'about' | 'email' | 'linkedin' | 'github') => {
-    if (panel === 'about') {
-      setShowAbout((v) => !v);
-    }
-    else setOpenPanel((curr) => (curr === panel ? null : panel));
-  };
 
   // Custom onClick for HeroBlocks to play harmonium if About is not open
   const handleHeroClick = () => {
