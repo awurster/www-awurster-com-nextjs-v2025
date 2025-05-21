@@ -2,13 +2,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { playDrumKick, playDrumSnare, playDrumHat, playDrumTomLow, playDrumTomHigh } from "../music";
 
 const DRUM_COLORS = [
-    '#18181b', // off
-    '#23232a', // bass drum (dark grey)
-    '#88898c', // snare (medium grey)
-    '#8ba5b4', // low tom (olive/earthy)
-    '#b5c8ac', // high tom (soft purple)
-    '#e6e6e6', // hat (very light grey)
-    '#23232a', // off (cycle)
+    '#1D1D20', // off
+    '#6a6a6a', // bass drum (10% brighter)
+    '#9d9d9d', // snare (10% brighter)
+    '#9bb8c8', // low tom (10% brighter)
+    '#c6e0be', // high tom (10% brighter)
+    '#f0f0f0', // hat (10% brighter)
+    '#1D1D20', // off (cycle, 10% brighter)
 ];
 
 export function DrumSequencer() {
@@ -204,12 +204,12 @@ export function DrumSequencer() {
                         {Array.from({ length: rows }).map((_, r) => {
                             const stepIdx = r * cols + c;
                             const state = steps[r][c];
-                            const isActive = playing && currentStep === stepIdx && state > 0 && state < NUM_STATES - 1;
+                            const isActive = playing && currentStep === stepIdx;
                             const isSet = state > 0 && state < NUM_STATES - 1;
                             return (
                                 <button
                                     key={r}
-                                    className={`rounded-[2px] border border-[#23232a] transition-all duration-150 focus:outline-none ${isActive ? 'ring-4 ring-[#d0e2d6]/60 shadow-[0_0_12px_2px_#d0e2d6]' : ''}`}
+                                    className={`rounded-[2px] border border-[#23232a] transition-all duration-150 focus:outline-none ${isActive ? 'ring-4 ring-[#d0e2d6]/40' : ''}`}
                                     style={{
                                         width: blockSize * 8,
                                         height: blockSize * 8,
@@ -219,7 +219,6 @@ export function DrumSequencer() {
                                                 ? DRUM_COLORS[state] + 'cc'
                                                 : DRUM_COLORS[0],
                                         opacity: isSet ? 0.95 : 0.5,
-                                        boxShadow: isActive ? `0 0 8px 2px ${DRUM_COLORS[state]}` : undefined,
                                     }}
                                     onClick={() => cycleStep(r, c)}
                                     tabIndex={0}

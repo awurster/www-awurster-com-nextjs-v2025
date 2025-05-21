@@ -4,16 +4,16 @@ import { playAmbientBass, playAmbientPad } from "../music";
 const JENGA_COLORS = ["#23232a", "#35353f", "#18181b", "#2a2a33"];
 const FIDGET_GLOW = '#d0e2d6';
 
-export function RectFidgetSpinner({ type, isActive = false, onKeyboardTrigger }: { type: 'bass' | 'pad', isActive?: boolean, onKeyboardTrigger?: () => void }) {
+export function RectFidgetSpinner({ type, isActive = false, onKeyboardTrigger, mobile = false }: { type: 'bass' | 'pad', isActive?: boolean, onKeyboardTrigger?: () => void, mobile?: boolean }) {
     const [grid, setGrid] = useState<number[][] | null>(null);
     const [colorGrid, setColorGrid] = useState<string[][] | null>(null);
     const [active, setActive] = useState(false);
 
-    const blockSize = 4.4;
+    const blockSize = mobile ? 3.2 : 4.4;
     const gridCols = 4;
     const gridRows = 3;
-    const width = gridCols * blockSize * 8 + (gridCols - 1) * 4 + 16;
-    const height = gridRows * blockSize * 8 + (gridRows - 1) * 4 + 16;
+    const width = gridCols * blockSize * 8 + (gridCols - 1) * (mobile ? 2 : 4) + (mobile ? 8 : 16);
+    const height = gridRows * blockSize * 8 + (gridRows - 1) * (mobile ? 2 : 4) + (mobile ? 8 : 16);
 
     useEffect(() => {
         setGrid(Array.from({ length: gridRows }, () => Array.from({ length: gridCols }, () => (Math.random() > 0.5 ? 1 : 0))));
@@ -50,12 +50,12 @@ export function RectFidgetSpinner({ type, isActive = false, onKeyboardTrigger }:
 
     return (
         <button
-            className={`transition-all duration-200 outline-none focus:outline-none rounded-[2px] shadow-lg p-2 ${(active || isActive) ? 'ring-4 ring-[#d0e2d6]/40 shadow-[0_0_16px_4px_#d0e2d6]' : ''}`}
+            className={`transition-all duration-200 outline-none focus:outline-none rounded-[2px] shadow-lg ${mobile ? 'p-0' : 'p-2'} ${(active || isActive) ? 'ring-4 ring-[#d0e2d6]/40 shadow-[0_0_16px_4px_#d0e2d6]' : ''}`}
             style={{ width, height, display: 'inline-block', background: 'none' }}
             onClick={handleClick}
             aria-label={type === 'bass' ? 'Ambient Bass Fidget' : 'Ambient Pad Fidget'}
         >
-            <div className="grid" style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gridTemplateRows: `repeat(${gridRows}, 1fr)`, gap: 4 }}>
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gridTemplateRows: `repeat(${gridRows}, 1fr)`, gap: mobile ? 2 : 4 }}>
                 {grid.flatMap((row, rIdx) =>
                     row.map((on, cIdx) => (
                         <div

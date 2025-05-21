@@ -5,7 +5,7 @@ import { FaEnvelope, FaLinkedin, FaGithub } from 'react-icons/fa';
 import { FidgetSpinner } from "./components/FidgetSpinner";
 import { RectFidgetSpinner } from "./components/RectFidgetSpinner";
 import { DrumSequencer } from "./components/DrumSequencer";
-import { playToneHold, stopToneHold, playHarmonium, generateRandomJazzChord, playAmbientBass, playAmbientBassVariation1, playAmbientBassVariation2, playAmbientPad } from "./music";
+import { playToneHold, stopToneHold, playHarmonium, generateRandomJazzChord, playAmbientBass, playAmbientBassVariation1, playAmbientBassVariation2, playAmbientPad, generateMysteriousChord } from "./music";
 
 const about = [
   {
@@ -17,7 +17,8 @@ const about = [
 
 // Generate a random arrangement of Jenga blocks (3 rows x 8 columns)
 function generateBlocks() {
-  const colors = ["#23232a", "#35353f", "#18181b", "#2a2a33"];
+  // Use a more harmonious palette
+  const colors = ["#23232a", "#3a4a5a", "#4e6e7a", "#b5c8ac"];
   const grid = Array.from({ length: 3 }, () =>
     Array.from({ length: 8 }, () => (Math.random() > 0.4 ? colors[Math.floor(Math.random() * colors.length)] : null))
   );
@@ -91,14 +92,16 @@ const pixelFont: Record<string, number[][]> = {
   ],
 };
 
-// Helper to get a random darker grayscale color
-function randomGray() {
-  const v = Math.floor(Math.random() * 40) + 80; // 80-120 for darker gray
-  return `rgb(${v},${v},${v})`;
-}
-
-function PixelName({ name }: { name: string }) {
+function PixelName({ name, highlight = false }: { name: string, highlight?: boolean }) {
   // Each letter is a 5x7 grid, 1px gap between letters
+  const letterPalette = [
+    "#18181b", // 5% darker
+    "#23232a", // base
+    "#35353f", // base
+    "#44444a", // 5% lighter
+  ];
+  // Blend #23232a (grey) with #b5c8ac (green) at 10%: result is #262a28
+  const subtleGreenGrey = "#444745";
   const letters = name.toLowerCase().split("").map((char) => pixelFont[char]);
   const rows = 7;
   const cols = letters.length * 5 + (letters.length - 1);
@@ -112,7 +115,7 @@ function PixelName({ name }: { name: string }) {
   const size = Math.floor((totalWidth - (paddedCols - 1)) / paddedCols); // px, size of each pixel
   const gap = 1; // px, gap between pixels
   // Precompute the grid for deterministic rendering
-  const grid: { on: boolean; key: string }[][] = Array.from({ length: paddedRows }, (_, r) =>
+  const grid: { on: boolean; key: string; color: string }[][] = Array.from({ length: paddedRows }, (_, r) =>
     Array.from({ length: paddedCols }, (_, c) => {
       // If in the padding, always off
       if (
@@ -121,19 +124,22 @@ function PixelName({ name }: { name: string }) {
         c < pad ||
         c >= pad + cols
       ) {
-        return { on: false, key: `pad-${r}-${c}` };
+        return { on: false, key: `pad-${r}-${c}`, color: subtleGreenGrey };
       }
       // Otherwise, map to the original grid
       const letterIdx = Math.floor((c - pad) / 6); // 5 pixels + 1 gap
       const inGap = (c - pad) % 6 === 5;
-      if (inGap) return { on: false, key: `gap-${r}-${c}` };
+      if (inGap) return { on: false, key: `gap-${r}-${c}`, color: subtleGreenGrey };
       const px = (c - pad) % 6;
       const on = !!letters[letterIdx]?.[r - pad]?.[px];
-      return { on, key: `${letterIdx}-${r - pad}-${px}` };
+      // Use only dark greys for on pixels, subtle green-tinted grey for off
+      const color = on ? letterPalette[(letterIdx + r + px) % letterPalette.length] : subtleGreenGrey;
+      return { on, key: `${letterIdx}-${r - pad}-${px}`, color };
     })
   );
   return (
-    <div className="flex flex-col items-center mt-2">
+    <div className={`flex flex-col items-center mt-2 transition-all duration-200 ${highlight ? 'ring-2 ring-[#b5c8ac]/40' : ''}`}
+      style={highlight ? { boxShadow: '0 0 0 4px rgba(72, 81, 69, 1)', borderRadius: 6 } : {}}>
       {grid.map((row, rowIdx) => (
         <div key={rowIdx} className="flex flex-row" style={{ marginBottom: gap }}>
           {row.map((cell, colIdx) => {
@@ -150,7 +156,7 @@ function PixelName({ name }: { name: string }) {
                   width: size,
                   height: size,
                   marginRight: gap,
-                  background: isCorner ? '#18181b' : (cell.on ? "#bdbdbd" : randomGray()),
+                  background: isCorner ? subtleGreenGrey : cell.color,
                   borderRadius: 1,
                 }}
               />
@@ -162,7 +168,7 @@ function PixelName({ name }: { name: string }) {
   );
 }
 
-function HeroBlocks({ onClick, isActive }: { onClick?: () => void; isActive?: boolean }) {
+function HeroBlocks({ onClick, isActive, soundIsPlaying, harmoniumActive }: { onClick?: () => void; isActive?: boolean, soundIsPlaying?: boolean, harmoniumActive?: boolean }) {
   const [blocks, setBlocks] = useState<Array<Array<string | null>> | null>(null);
 
   useEffect(() => {
@@ -176,7 +182,7 @@ function HeroBlocks({ onClick, isActive }: { onClick?: () => void; isActive?: bo
 
   return (
     <div
-      className={`flex flex-col items-center gap-2 select-none transition-shadow ${onClick ? 'cursor-pointer p-6' : ''} ${isActive ? 'ring-2 ring-[#23232a]/40 shadow-[0_0_4px_1px_#23232a]' : ''}`}
+      className={`flex flex-col items-center gap-2 select-none transition-shadow ${onClick ? 'cursor-pointer p-6' : ''} rounded-[4px] ${(soundIsPlaying || harmoniumActive) ? 'ring-6 ring-[#b5c8ac]/60' : ''}`}
       onClick={onClick}
       tabIndex={onClick ? 0 : undefined}
       role={onClick ? 'button' : undefined}
@@ -202,12 +208,28 @@ function HeroBlocks({ onClick, isActive }: { onClick?: () => void; isActive?: bo
         )}
       </div>
       {/* Pixelated name below blocks */}
-      <PixelName name="awurster" />
+      <PixelName name="awurster" highlight={soundIsPlaying || harmoniumActive} />
     </div>
   );
 }
 
-function FidgetSpinners() {
+// Add a simple useIsMobile hook
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    function onResize() {
+      setIsMobile(window.innerWidth < 640);
+    }
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  return isMobile;
+}
+
+type FidgetSpinnersProps = { triggerSoundActive: () => void };
+function FidgetSpinners({ triggerSoundActive }: FidgetSpinnersProps) {
+  const isMobile = useIsMobile();
   const tones = useMemo(() => [261.63, 293.66, 329.63, 392.00, 440.00], []);
   const keyMap = useMemo(() => ['q', 'w', 'e', 'r', 't', 's', 'd'], []);
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
@@ -281,20 +303,30 @@ function FidgetSpinners() {
 
   return (
     <>
-      <div className="w-full flex flex-row items-center justify-center gap-6 py-10">
+      <div className={`w-full flex flex-row items-center justify-center ${isMobile ? 'gap-2 py-4' : 'gap-6 py-10'}`}>
         {tones.map((freq, idx) => (
           <FidgetSpinner
             key={idx}
             freq={freq}
             isActive={activeIdx === idx}
-            onKeyboardTrigger={() => setActiveIdx(idx)}
+            onKeyboardTrigger={() => {
+              setActiveIdx(idx);
+              triggerSoundActive();
+            }}
             idx={idx}
+            mobile={isMobile}
           />
         ))}
       </div>
-      <div className="w-full flex flex-row items-center justify-center gap-10 pb-10">
-        <RectFidgetSpinner type="bass" isActive={rectActive === 'bass'} onKeyboardTrigger={() => setRectActive('bass')} />
-        <RectFidgetSpinner type="pad" isActive={rectActive === 'pad'} onKeyboardTrigger={() => setRectActive('pad')} />
+      <div className={`w-full flex flex-row items-center justify-center ${isMobile ? 'gap-2 pb-4' : 'gap-10 pb-10'}`}>
+        <RectFidgetSpinner type="bass" isActive={rectActive === 'bass'} onKeyboardTrigger={() => {
+          setRectActive('bass');
+          triggerSoundActive();
+        }} mobile={isMobile} />
+        <RectFidgetSpinner type="pad" isActive={rectActive === 'pad'} onKeyboardTrigger={() => {
+          setRectActive('pad');
+          triggerSoundActive();
+        }} mobile={isMobile} />
       </div>
       <DrumSequencer />
     </>
@@ -305,24 +337,40 @@ export default function Home() {
   const [showAbout, setShowAbout] = useState(false);
   const [openPanel, setOpenPanel] = useState<null | 'email' | 'linkedin' | 'github'>(null);
   const heroRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const [soundIsPlaying, setSoundIsPlaying] = useState(false);
+  const [activeHarmoniumIdx, setActiveHarmoniumIdx] = useState<number | null>(null);
 
   // --- Harmonium jazz chords easter egg ---
   const jazzChordsRef = useRef<number[][]>([]);
   useEffect(() => {
     // Generate 4 random jazz chords on mount
     jazzChordsRef.current = [
-      generateRandomJazzChord(),
-      generateRandomJazzChord(),
-      generateRandomJazzChord(),
-      generateRandomJazzChord(),
+      generateRandomJazzChord(), // 1
+      generateMysteriousChord(), // 2
+      generateRandomJazzChord(), // 3
+      generateMysteriousChord(), // 4
     ];
   }, []);
 
   // Custom onClick for HeroBlocks to play harmonium if About is not open
   const handleHeroClick = () => {
-    if (!showAbout) playHarmonium();
-    setShowAbout((v) => !v);
+    playHarmonium();
+    if (!showAbout) {
+      setShowAbout(true);
+    } else {
+      // Only refresh the pixel blocks (by updating a key or state)
+      setPixelRefreshKey((k) => k + 1);
+    }
   };
+
+  // --- Sound playing tracking ---
+  // Helper to set soundIsPlaying true for a short time when any sound is triggered
+  function triggerSoundActive() {
+    setSoundIsPlaying(true);
+    clearTimeout((triggerSoundActive as { _timeout?: ReturnType<typeof setTimeout> })._timeout);
+    (triggerSoundActive as { _timeout?: ReturnType<typeof setTimeout> })._timeout = setTimeout(() => setSoundIsPlaying(false), 3500);
+  }
 
   // Add keydown listener for '1'-'5' to trigger harmonium chords
   useEffect(() => {
@@ -330,29 +378,43 @@ export default function Home() {
       if (e.repeat) return;
       if (e.key === '3') {
         playHarmonium(); // default C major
+        setActiveHarmoniumIdx(2);
       } else if (["1", "2", "4", "5"].includes(e.key)) {
-        const idx = { "1": 0, "2": 1, "4": 2, "5": 3 }[e.key as "1" | "2" | "4" | "5"];
+        const idx = { "1": 0, "2": 1, "4": 3, "5": 4 }[e.key as "1" | "2" | "4" | "5"];
         playHarmonium(jazzChordsRef.current[idx]);
+        setActiveHarmoniumIdx(idx);
+      }
+    }
+    function handleHarmoniumKeyUp(e: KeyboardEvent) {
+      if (["1", "2", "3", "4", "5"].includes(e.key)) {
+        setActiveHarmoniumIdx(null);
       }
     }
     window.addEventListener('keydown', handleHarmoniumKey);
-    return () => window.removeEventListener('keydown', handleHarmoniumKey);
+    window.addEventListener('keyup', handleHarmoniumKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleHarmoniumKey);
+      window.removeEventListener('keyup', handleHarmoniumKeyUp);
+    };
   }, []);
+
+  // Add a state to force PixelName to re-render
+  const [pixelRefreshKey, setPixelRefreshKey] = useState(0);
 
   return (
     <main className="min-h-screen flex flex-col items-center bg-background text-foreground">
       {/* Hero Section */}
-      <section className="flex flex-col items-center justify-center h-[80vh] w-full relative">
+      <section className={`flex flex-col items-center justify-center h-[80vh] w-full relative ${isMobile ? 'mt-20' : 'mt-0'}`}>
         <div ref={heroRef} className="relative z-10">
-          <HeroBlocks onClick={handleHeroClick} isActive={showAbout} />
+          <HeroBlocks onClick={handleHeroClick} isActive={showAbout} soundIsPlaying={soundIsPlaying} harmoniumActive={activeHarmoniumIdx !== null} key={pixelRefreshKey} />
         </div>
         <div className="mt-2 z-0">
-          <FidgetSpinners />
+          <FidgetSpinners triggerSoundActive={triggerSoundActive} />
         </div>
       </section>
 
-      {/* Social/Jenga Buttons at the bottom */}
-      <div className="fixed bottom-24 left-0 right-0 flex flex-row items-center justify-center gap-6 z-50">
+      {/* Social/Jenga Buttons at the bottom (static on mobile, fixed on desktop) */}
+      <div className={`${isMobile ? 'static mt-6 mb-4' : 'fixed bottom-24 left-0 right-0'} flex flex-row items-center justify-center gap-6 z-50`}>
         {/* Email Accordion */}
         <div className="relative flex flex-col items-center">
           {/* Panel slides out above the button */}

@@ -639,14 +639,12 @@ export function generateSpicyCChord(): number[] {
     const Db = 138.59 * 2; // Db4
     const Eb = 155.56 * 2; // Eb4
     const E = 164.81 * 2; // E4
-    const F = 174.61 * 2; // F4
     const Fsharp = 185.00 * 2; // F#4
     const Gb = 185.00 * 2; // Gb4
     const G = 196.00 * 2; // G4
     const Ab = 207.65 * 2; // Ab4
     const A = 220.00 * 2; // A4
     const Bb = 233.08 * 2; // Bb4
-    const B = 246.94 * 2; // B4
     // Spicy C chords
     const chords = [
         [C, Eb, Gb, A], // Cdim7
