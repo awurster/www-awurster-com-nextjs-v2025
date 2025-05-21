@@ -15,7 +15,7 @@ function generateColorGrid(size = 3) {
     );
 }
 
-export function FidgetSpinner({ freq, isActive = false, onKeyboardTrigger, idx }: { freq: number, isActive?: boolean, onKeyboardTrigger?: () => void, idx?: number }) {
+export function FidgetSpinner({ freq, isActive = false, onKeyboardTrigger, idx, mobile = false }: { freq: number, isActive?: boolean, onKeyboardTrigger?: () => void, idx?: number, mobile?: boolean }) {
     const [grid, setGrid] = useState<number[][] | null>(null);
     const [colorGrid, setColorGrid] = useState<string[][] | null>(null);
     const [active, setActive] = useState(false);
@@ -56,25 +56,27 @@ export function FidgetSpinner({ freq, isActive = false, onKeyboardTrigger, idx }
     }
 
     if (!grid || !colorGrid) {
-        return <div style={{ width: 44, height: 44 }} />;
+        return <div style={{ width: mobile ? 44 : 60, height: mobile ? 44 : 60 }} />;
     }
 
     return (
         <button
-            className={`transition-all duration-200 outline-none focus:outline-none rounded-[2px] shadow-lg p-1 ${(active || isActive) ? 'ring-4 ring-[#d0e2d6]/40 shadow-[0_0_16px_4px_#d0e2d6]' : ''}`}
-            style={{ width: 60, height: 60, display: 'inline-block', background: 'none' }}
+            className={`transition-all duration-200 outline-none focus:outline-none rounded-[2px] shadow-lg ${mobile ? 'p-0' : 'p-1'} ${(active || isActive) ? 'ring-4 ring-[#d0e2d6]/40 shadow-[0_0_16px_4px_#d0e2d6]' : ''}`}
+            style={{ width: mobile ? 44 : 60, height: mobile ? 44 : 60, display: 'inline-block', background: 'none' }}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
             aria-label="Fidget Spinner"
         >
-            <div className="grid grid-cols-3 grid-rows-3 gap-[2px]">
+            <div className="grid grid-cols-3 grid-rows-3" style={{ gap: mobile ? 1 : 2 }}>
                 {grid.flatMap((row, rIdx) =>
                     row.map((on, cIdx) => (
                         <div
                             key={rIdx + '-' + cIdx}
-                            className="w-4 h-4 rounded-[2px]"
+                            className="rounded-[2px]"
                             style={{
+                                width: mobile ? 12 : 16,
+                                height: mobile ? 12 : 16,
                                 background: on ? ((active || isActive) ? FIDGET_GLOW : colorGrid[rIdx][cIdx]) : '#18181b',
                                 opacity: on ? 0.95 : 0.5,
                                 boxShadow: on && (active || isActive) ? `0 0 8px 2px ${FIDGET_GLOW}` : undefined,
