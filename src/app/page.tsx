@@ -170,10 +170,11 @@ function PixelName({ name, highlight = false }: { name: string, highlight?: bool
 
 function HeroBlocks({ onClick, isActive, soundIsPlaying, harmoniumActive }: { onClick?: () => void; isActive?: boolean, soundIsPlaying?: boolean, harmoniumActive?: boolean }) {
   const [blocks, setBlocks] = useState<Array<Array<string | null>> | null>(null);
+  const [pixelRefreshKey, setPixelRefreshKey] = useState(0);
 
   useEffect(() => {
     setBlocks(generateBlocks());
-  }, []);
+  }, [pixelRefreshKey]);
 
   if (!blocks) {
     // Optionally render a placeholder while waiting for client-side render
@@ -183,7 +184,10 @@ function HeroBlocks({ onClick, isActive, soundIsPlaying, harmoniumActive }: { on
   return (
     <div
       className={`flex flex-col items-center gap-2 select-none transition-shadow ${onClick ? 'cursor-pointer p-6' : ''} rounded-[4px] ${(soundIsPlaying || harmoniumActive) ? 'ring-6 ring-[#b5c8ac]/60' : ''}`}
-      onClick={onClick}
+      onClick={() => {
+        if (onClick) onClick();
+        setPixelRefreshKey((k) => k + 1);
+      }}
       tabIndex={onClick ? 0 : undefined}
       role={onClick ? 'button' : undefined}
       aria-pressed={isActive}
@@ -358,9 +362,6 @@ export default function Home() {
     playHarmonium();
     if (!showAbout) {
       setShowAbout(true);
-    } else {
-      // Only refresh the pixel blocks (by updating a key or state)
-      setPixelRefreshKey((k) => k + 1);
     }
   };
 
@@ -398,103 +399,103 @@ export default function Home() {
     };
   }, []);
 
-  // Add a state to force PixelName to re-render
-  const [pixelRefreshKey, setPixelRefreshKey] = useState(0);
-
   return (
     <main className="min-h-screen flex flex-col items-center bg-background text-foreground">
       {/* Hero Section */}
       <section className={`flex flex-col items-center justify-center h-[80vh] w-full relative ${isMobile ? 'mt-20' : 'mt-0'}`}>
         <div ref={heroRef} className="relative z-10">
-          <HeroBlocks onClick={handleHeroClick} isActive={showAbout} soundIsPlaying={soundIsPlaying} harmoniumActive={activeHarmoniumIdx !== null} key={pixelRefreshKey} />
+          <HeroBlocks onClick={handleHeroClick} isActive={showAbout} soundIsPlaying={soundIsPlaying} harmoniumActive={activeHarmoniumIdx !== null} />
         </div>
         <div className="mt-2 z-0">
           <FidgetSpinners triggerSoundActive={triggerSoundActive} />
         </div>
       </section>
 
-      {/* Social/Jenga Buttons at the bottom (static on mobile, fixed on desktop) */}
-      <div className={`${isMobile ? 'static mt-6 mb-4' : 'fixed bottom-24 left-0 right-0'} flex flex-row items-center justify-center gap-6 z-50`}>
-        {/* Email Accordion */}
-        <div className="relative flex flex-col items-center">
-          {/* Panel slides out above the button */}
-          <div
-            className={`absolute bottom-16 left-1/2 -translate-x-1/2 transition-all duration-300 ${openPanel === 'email' ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}`}
-            style={{ minWidth: 220 }}
-          >
-            <section className="flex flex-col items-center gap-2 bg-[#18181b]/80 rounded-[2px] shadow-2xl shadow-[#23232a]/40 border border-[#23232a] p-6 backdrop-blur-md">
-              <h2 className="text-lg font-semibold text-foreground">Email</h2>
-              <span className="select-all text-gray-400 text-sm">
-                <span>{"www"}</span>
-                <span className="hidden">[at]</span>
-                <span className="mx-1">@</span>
-                <span>{"awurster"}</span>
-                <span className="hidden">[dot]</span>
-                <span className="mx-1">.</span>
-                <span>{"com"}</span>
-              </span>
+      {/* Social/Jenga Buttons and About Panel at the bottom */}
+      <div className={`w-full flex flex-col items-center justify-end ${isMobile ? 'static mt-6 mb-4' : 'fixed bottom-0 left-0 right-0'} z-50`}>
+        {/* Social Icons Row */}
+        <div className="flex flex-row items-center justify-center gap-6">
+          {/* Email Accordion */}
+          <div className="relative flex flex-col items-center">
+            {/* Panel slides out above the button */}
+            <div
+              className={`absolute bottom-16 left-1/2 -translate-x-1/2 transition-all duration-300 ${openPanel === 'email' ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+              style={{ minWidth: 220 }}
+            >
+              <section className="flex flex-col items-center gap-2 bg-[#18181b]/80 rounded-[2px] shadow-2xl shadow-[#23232a]/40 border border-[#23232a] p-6 backdrop-blur-md">
+                <h2 className="text-lg font-semibold text-foreground">Email</h2>
+                <span className="select-all text-gray-400 text-sm">
+                  <span>{"www"}</span>
+                  <span className="hidden">[at]</span>
+                  <span className="mx-1">@</span>
+                  <span>{"awurster"}</span>
+                  <span className="hidden">[dot]</span>
+                  <span className="mx-1">.</span>
+                  <span>{"com"}</span>
+                </span>
+              </section>
+            </div>
+            <button
+              className={`w-12 h-12 flex items-center justify-center rounded-[2px] shadow-lg transition-all duration-200 border border-[#35353f] bg-[#23232a] hover:bg-[#35353f] ${openPanel === 'email' ? 'ring-4 ring-[#23232a]/60 shadow-[0_0_16px_4px_#23232a]' : ''}`}
+              onClick={() => setOpenPanel(openPanel === 'email' ? null : 'email')}
+              aria-label="Email"
+            >
+              <FaEnvelope className="text-[#bdbdbd] text-2xl" />
+            </button>
+          </div>
+          {/* LinkedIn Accordion */}
+          <div className="relative flex flex-col items-center">
+            <div
+              className={`absolute bottom-16 left-1/2 -translate-x-1/2 transition-all duration-300 ${openPanel === 'linkedin' ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+              style={{ minWidth: 220 }}
+            >
+              <section className="flex flex-col items-center gap-2 bg-[#18181b]/80 rounded-[2px] shadow-2xl shadow-[#23232a]/40 border border-[#23232a] p-6 backdrop-blur-md">
+                <h2 className="text-lg font-semibold text-foreground">LinkedIn</h2>
+                <a href="https://www.linkedin.com/in/awurster-sec/" target="_blank" rel="noopener noreferrer" className="text-[#7fffd4] hover:underline text-sm">@awurster-sec</a>
+              </section>
+            </div>
+            <button
+              className={`w-12 h-12 flex items-center justify-center rounded-[2px] shadow-lg transition-all duration-200 border border-[#35353f] bg-[#23232a] hover:bg-[#35353f] ${openPanel === 'linkedin' ? 'ring-4 ring-[#23232a]/60 shadow-[0_0_16px_4px_#23232a]' : ''}`}
+              onClick={() => setOpenPanel(openPanel === 'linkedin' ? null : 'linkedin')}
+              aria-label="LinkedIn"
+            >
+              <FaLinkedin className="text-[#bdbdbd] text-2xl" />
+            </button>
+          </div>
+          {/* GitHub Accordion */}
+          <div className="relative flex flex-col items-center">
+            <div
+              className={`absolute bottom-16 left-1/2 -translate-x-1/2 transition-all duration-300 ${openPanel === 'github' ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}`}
+              style={{ minWidth: 220 }}
+            >
+              <section className="flex flex-col items-center gap-2 bg-[#18181b]/80 rounded-[2px] shadow-2xl shadow-[#23232a]/40 border border-[#23232a] p-6 backdrop-blur-md">
+                <h2 className="text-lg font-semibold text-foreground">GitHub</h2>
+                <a href="https://github.com/awurster" target="_blank" rel="noopener noreferrer" className="text-[#7fffd4] hover:underline text-sm">@awurster</a>
+              </section>
+            </div>
+            <button
+              className={`w-12 h-12 flex items-center justify-center rounded-[2px] shadow-lg transition-all duration-200 border border-[#35353f] bg-[#23232a] hover:bg-[#35353f] ${openPanel === 'github' ? 'ring-4 ring-[#23232a]/60 shadow-[0_0_16px_4px_#23232a]' : ''}`}
+              onClick={() => setOpenPanel(openPanel === 'github' ? null : 'github')}
+              aria-label="GitHub"
+            >
+              <FaGithub className="text-[#bdbdbd] text-2xl" />
+            </button>
+          </div>
+        </div>
+        {/* About Panel below social icons */}
+        {showAbout && (
+          <div className="w-full flex justify-center animate-fade-in mt-10 mb-8">
+            <section className="w-full max-w-[400px] min-w-[320px] bg-[#18181b]/80 rounded-[2px] shadow-lg shadow-[#23232a]/30 border border-[#23232a] px-5 py-2 flex flex-col items-center gap-2 backdrop-blur-md" style={{ height: '60px' }}>
+              {about.map((item, idx) => (
+                <div key={idx} className="flex flex-col items-center">
+                  <span className="text-base text-gray-300 text-center font-semibold" style={{ fontSize: '0.95rem' }}>{item.profession}</span>
+                  <span className="text-xs text-gray-400 text-center" style={{ fontSize: '0.7rem' }}>{item.passions}</span>
+                </div>
+              ))}
             </section>
           </div>
-          <button
-            className={`w-12 h-12 flex items-center justify-center rounded-[2px] shadow-lg transition-all duration-200 border border-[#35353f] bg-[#23232a] hover:bg-[#35353f] ${openPanel === 'email' ? 'ring-4 ring-[#23232a]/60 shadow-[0_0_16px_4px_#23232a]' : ''}`}
-            onClick={() => setOpenPanel(openPanel === 'email' ? null : 'email')}
-            aria-label="Email"
-          >
-            <FaEnvelope className="text-[#bdbdbd] text-2xl" />
-          </button>
-        </div>
-        {/* LinkedIn Accordion */}
-        <div className="relative flex flex-col items-center">
-          <div
-            className={`absolute bottom-16 left-1/2 -translate-x-1/2 transition-all duration-300 ${openPanel === 'linkedin' ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}`}
-            style={{ minWidth: 220 }}
-          >
-            <section className="flex flex-col items-center gap-2 bg-[#18181b]/80 rounded-[2px] shadow-2xl shadow-[#23232a]/40 border border-[#23232a] p-6 backdrop-blur-md">
-              <h2 className="text-lg font-semibold text-foreground">LinkedIn</h2>
-              <a href="https://www.linkedin.com/in/awurster-sec/" target="_blank" rel="noopener noreferrer" className="text-[#7fffd4] hover:underline text-sm">@awurster-sec</a>
-            </section>
-          </div>
-          <button
-            className={`w-12 h-12 flex items-center justify-center rounded-[2px] shadow-lg transition-all duration-200 border border-[#35353f] bg-[#23232a] hover:bg-[#35353f] ${openPanel === 'linkedin' ? 'ring-4 ring-[#23232a]/60 shadow-[0_0_16px_4px_#23232a]' : ''}`}
-            onClick={() => setOpenPanel(openPanel === 'linkedin' ? null : 'linkedin')}
-            aria-label="LinkedIn"
-          >
-            <FaLinkedin className="text-[#bdbdbd] text-2xl" />
-          </button>
-        </div>
-        {/* GitHub Accordion */}
-        <div className="relative flex flex-col items-center">
-          <div
-            className={`absolute bottom-16 left-1/2 -translate-x-1/2 transition-all duration-300 ${openPanel === 'github' ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'}`}
-            style={{ minWidth: 220 }}
-          >
-            <section className="flex flex-col items-center gap-2 bg-[#18181b]/80 rounded-[2px] shadow-2xl shadow-[#23232a]/40 border border-[#23232a] p-6 backdrop-blur-md">
-              <h2 className="text-lg font-semibold text-foreground">GitHub</h2>
-              <a href="https://github.com/awurster" target="_blank" rel="noopener noreferrer" className="text-[#7fffd4] hover:underline text-sm">@awurster</a>
-            </section>
-          </div>
-          <button
-            className={`w-12 h-12 flex items-center justify-center rounded-[2px] shadow-lg transition-all duration-200 border border-[#35353f] bg-[#23232a] hover:bg-[#35353f] ${openPanel === 'github' ? 'ring-4 ring-[#23232a]/60 shadow-[0_0_16px_4px_#23232a]' : ''}`}
-            onClick={() => setOpenPanel(openPanel === 'github' ? null : 'github')}
-            aria-label="GitHub"
-          >
-            <FaGithub className="text-[#bdbdbd] text-2xl" />
-          </button>
-        </div>
+        )}
       </div>
-      {/* About Panel below social icons */}
-      {showAbout && (
-        <div className="fixed left-1/2 bottom-0 z-40 animate-fade-in" style={{ transform: 'translateX(-50%) translateY(0)', minWidth: 320, maxWidth: 400 }}>
-          <section className="w-full bg-[#18181b]/80 rounded-[2px] shadow-lg shadow-[#23232a]/30 border border-[#23232a] px-5 py-2 flex flex-col items-center gap-2 backdrop-blur-md" style={{ height: '60px' }}>
-            {about.map((item, idx) => (
-              <div key={idx} className="flex flex-col items-center">
-                <span className="text-base text-gray-300 text-center font-semibold" style={{ fontSize: '0.95rem' }}>{item.profession}</span>
-                <span className="text-xs text-gray-400 text-center" style={{ fontSize: '0.7rem' }}>{item.passions}</span>
-              </div>
-            ))}
-          </section>
-        </div>
-      )}
     </main>
   );
 }

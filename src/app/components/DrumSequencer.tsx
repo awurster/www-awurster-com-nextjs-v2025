@@ -194,10 +194,21 @@ export function DrumSequencer() {
             next[r][c] = (next[r][c] + 1) % NUM_STATES;
             return next;
         });
+        if (!playing) setPlaying(true);
     }
 
     return (
-        <div className="w-full flex flex-col items-center justify-center gap-2 pb-10">
+        <div className="w-full flex flex-col items-center justify-center gap-2 pb-10"
+            style={{
+                background: '#18181b',
+                borderRadius: 12,
+                padding: 24,
+                boxShadow: '0 2px 24px 0 #18181b99',
+                zIndex: 2,
+                maxWidth: 520,
+                margin: '0 auto',
+            }}
+        >
             <div className="flex flex-row items-center justify-center gap-2">
                 {Array.from({ length: cols }).map((_, c) => (
                     <div key={c} className="flex flex-col gap-2">

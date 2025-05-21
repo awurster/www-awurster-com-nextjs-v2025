@@ -62,7 +62,7 @@ export function FidgetSpinner({ freq, isActive = false, onKeyboardTrigger, idx, 
     return (
         <button
             className={`transition-all duration-200 outline-none focus:outline-none rounded-[2px] shadow-lg ${mobile ? 'p-0' : 'p-1'} ${(active || isActive) ? 'ring-4 ring-[#d0e2d6]/40 shadow-[0_0_16px_4px_#d0e2d6]' : ''}`}
-            style={{ width: mobile ? 44 : 60, height: mobile ? 44 : 60, display: 'inline-block', background: 'none' }}
+            style={{ width: mobile ? 44 : 60, height: mobile ? 44 : 60, display: 'inline-block', background: '#18181b' }}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseLeave}
