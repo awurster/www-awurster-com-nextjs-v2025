@@ -6,9 +6,7 @@ const BG_COLOR = '#18181b';
 const PIXEL_COLORS = ['#444745', '#3a4a5a', '#4e6e7a', '#b5c8ac']; // harmonious palette
 const PIXEL_SIZE = 6; // px, matches awurster box
 const MAX_PIXELS = 40; // max number of dots
-const MOVE_INTERVAL_MIN = 2.0; // seconds
-const MOVE_INTERVAL_MAX = 4.0; // seconds
-const MOVE_STEP = 1.5; // px per frame (slow)
+// const MOVE_STEP = 1.5; // px per frame (slow) // (unused)
 const DOT_ALPHA = 0.22; // fixed alpha
 const START_DOTS = 7;
 
@@ -25,9 +23,9 @@ function randomGridPos(width: number, height: number) {
     };
 }
 
-function randomInterval() {
-    return MOVE_INTERVAL_MIN + Math.random() * (MOVE_INTERVAL_MAX - MOVE_INTERVAL_MIN);
-}
+// function randomInterval() {
+//     return MOVE_INTERVAL_MIN + Math.random() * (MOVE_INTERVAL_MAX - MOVE_INTERVAL_MIN);
+// }
 
 function randomGridNeighbor(dot: { x: number, y: number }, width: number, height: number) {
     const moves = [
@@ -48,7 +46,7 @@ function randomGridNeighbor(dot: { x: number, y: number }, width: number, height
 }
 
 const ArtDecoBackground = forwardRef(function ArtDecoBackground(
-    { movementLevel = 0, bpm = 120, onReady }: { movementLevel?: number, bpm?: number, onReady?: () => void },
+    { bpm = 120 }: { bpm?: number },
     ref
 ) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -137,7 +135,7 @@ const ArtDecoBackground = forwardRef(function ArtDecoBackground(
             }
 
             // Draw dots
-            for (let dot of dots.current) {
+            for (const dot of dots.current) {
                 ctx.fillStyle = dot.color;
                 ctx.globalAlpha = DOT_ALPHA;
                 ctx.fillRect(dot.x, dot.y, PIXEL_SIZE, PIXEL_SIZE);
