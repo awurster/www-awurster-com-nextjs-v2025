@@ -132,18 +132,26 @@ function PixelName({ name }: { name: string }) {
     <div className="flex flex-col items-center mt-2">
       {grid.map((row, rowIdx) => (
         <div key={rowIdx} className="flex flex-row" style={{ marginBottom: gap }}>
-          {row.map((cell) => (
-            <div
-              key={cell.key}
-              style={{
-                width: size,
-                height: size,
-                marginRight: gap,
-                background: cell.on ? "#bdbdbd" : randomGray(),
-                borderRadius: 1,
-              }}
-            />
-          ))}
+          {row.map((cell, colIdx) => {
+            // Make the four corners slightly darker for a rounded look
+            const isCorner =
+              (rowIdx === 0 && colIdx === 0) ||
+              (rowIdx === 0 && colIdx === grid[0].length - 1) ||
+              (rowIdx === grid.length - 1 && colIdx === 0) ||
+              (rowIdx === grid.length - 1 && colIdx === grid[0].length - 1);
+            return (
+              <div
+                key={cell.key}
+                style={{
+                  width: size,
+                  height: size,
+                  marginRight: gap,
+                  background: isCorner ? '#18181b' : (cell.on ? "#bdbdbd" : randomGray()),
+                  borderRadius: 1,
+                }}
+              />
+            );
+          })}
         </div>
       ))}
     </div>
@@ -164,7 +172,7 @@ function HeroBlocks({ onClick, isActive }: { onClick?: () => void; isActive?: bo
 
   return (
     <div
-      className={`flex flex-col items-center gap-2 select-none transition-shadow ${onClick ? 'cursor-pointer' : ''} ${isActive ? 'ring-4 ring-[#23232a]/60 shadow-[0_0_16px_4px_#23232a]' : ''}`}
+      className={`flex flex-col items-center gap-2 select-none transition-shadow ${onClick ? 'cursor-pointer p-6' : ''} ${isActive ? 'ring-4 ring-[#23232a]/60 shadow-[0_0_16px_4px_#23232a]' : ''}`}
       onClick={onClick}
       tabIndex={onClick ? 0 : undefined}
       role={onClick ? 'button' : undefined}
@@ -251,7 +259,7 @@ function FidgetSpinner({ freq }: { freq: number }) {
   // Each block is 16x16px, gap 2px, so total size: 3*16 + 2*2 = 52px
   return (
     <button
-      className={`transition-all duration-200 outline-none focus:outline-none rounded-xl shadow-lg p-1 ${active ? 'ring-4 ring-[#d0e2d6]/40 shadow-[0_0_16px_4px_#d0e2d6]' : ''}`}
+      className={`transition-all duration-200 outline-none focus:outline-none rounded-[2px] shadow-lg p-1 ${active ? 'ring-4 ring-[#d0e2d6]/40 shadow-[0_0_16px_4px_#d0e2d6]' : ''}`}
       style={{ width: 60, height: 60, display: 'inline-block', background: 'none' }}
       onClick={handleClick}
       aria-label="Fidget Spinner"
