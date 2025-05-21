@@ -19,18 +19,21 @@ export function DrumSequencer() {
     const [playing, setPlaying] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     const [bpm, setBpm] = useState(112); // Default BPM is now 112
+    const [swingRatio, setSwingRatio] = useState(0.7); // state for swing
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const tapTimes = useRef<number[]>([]);
     const tapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [randomize, setRandomize] = useState(false);
     const [rollActive, setRollActive] = useState(false);
     const rollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [holdActive, setHoldActive] = useState(false);
+    const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // 0=off, 1=bass, 2=snare, 3=low tom, 4=high tom, 5=hat, 6=off (cycle)
     const NUM_STATES = 7;
 
     // --- SWING LOGIC ---
-    const SWING_RATIO = 0.7; // 70% swing
+    // const SWING_RATIO = 0.7; // 70% swing
     // ---
 
     const playDrum = useCallback((row: number, type: number, randomize: boolean = false) => {
@@ -50,7 +53,7 @@ export function DrumSequencer() {
         const baseStepMs = 60_000 / bpm;
         // For swing: even steps normal, odd steps delayed by swing
         function getStepDuration(stepIdx: number) {
-            return stepIdx % 2 === 0 ? baseStepMs * (1 - SWING_RATIO * 0.5) : baseStepMs * (1 + SWING_RATIO * 0.5);
+            return stepIdx % 2 === 0 ? baseStepMs * (1 - swingRatio * 0.5) : baseStepMs * (1 + swingRatio * 0.5);
         }
         let stepIdx = currentStep;
         function scheduleNextStep() {
@@ -63,7 +66,7 @@ export function DrumSequencer() {
         return () => {
             if (intervalRef.current) clearTimeout(intervalRef.current);
         };
-    }, [playing, bpm, rows, cols, currentStep]);
+    }, [playing, bpm, rows, cols, currentStep, swingRatio]);
 
     // Drum roll/glitch repeat logic (quarter-step repeat, in time)
     useEffect(() => {
@@ -95,36 +98,95 @@ export function DrumSequencer() {
     }, [currentStep, playing, steps, cols, playDrum, randomize]);
 
     useEffect(() => {
-        function handleKey(e: KeyboardEvent) {
+        function handleKeyDown(e: KeyboardEvent) {
+            if (e.repeat) return;
             if (e.key.toLowerCase() === 'p') {
                 setPlaying((p) => !p);
-            } else if (e.key === ' ') {
-                e.preventDefault();
-                const now = Date.now();
-                if (tapTimeout.current) clearTimeout(tapTimeout.current);
-                tapTimes.current.push(now);
-                if (tapTimes.current.length > 1) {
-                    const times = tapTimes.current.slice(-6);
-                    const intervals = times.slice(1).map((t, i) => t - times[i]);
-                    const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-                    if (intervals.length >= 1 && avg > 0) {
-                        const newBpm = Math.round(60_000 / avg);
-                        setBpm(Math.max(40, Math.min(300, newBpm)));
-                    }
-                }
-                tapTimeout.current = setTimeout(() => {
-                    tapTimes.current = [];
-                }, 2000);
-            } else if (e.key === ',' || e.key === '.') {
+            } else if (e.key === ',') {
                 setRandomize(true);
+            } else if (e.key === '.') {
+                setRollActive(true);
             } else if (e.key.toLowerCase() === 'm') {
-                // Generate an interesting pattern
                 setSteps(generateInterestingPattern(rows, cols));
+            } else if (e.key === ' ') {
+                // Space: tap tempo or hold
+                holdTimerRef.current = setTimeout(() => {
+                    setHoldActive(true);
+                    setPlaying(false);
+                }, 300); // 300ms threshold for hold
             }
         }
-        window.addEventListener('keydown', handleKey);
-        return () => window.removeEventListener('keydown', handleKey);
-    }, [rows, cols, NUM_STATES]);
+        function handleKeyUp(e: KeyboardEvent) {
+            if (e.key === '.') {
+                setRollActive(false);
+            } else if (e.key === ' ') {
+                if (holdTimerRef.current) {
+                    clearTimeout(holdTimerRef.current);
+                    holdTimerRef.current = null;
+                }
+                if (holdActive) {
+                    setHoldActive(false);
+                    setPlaying(true); // resume
+                } else {
+                    // Tap tempo logic (only if not a hold)
+                    const now = Date.now();
+                    if (tapTimeout.current) clearTimeout(tapTimeout.current);
+                    tapTimes.current.push(now);
+                    if (tapTimes.current.length > 1) {
+                        const times = tapTimes.current.slice(-6);
+                        const intervals = times.slice(1).map((t, i) => t - times[i]);
+                        const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                        if (intervals.length >= 1 && avg > 0) {
+                            const newBpm = Math.round(60_000 / avg);
+                            setBpm(Math.max(40, Math.min(300, newBpm)));
+                        }
+                    }
+                    tapTimeout.current = setTimeout(() => {
+                        tapTimes.current = [];
+                    }, 2000);
+                }
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+            if (rollIntervalRef.current) clearInterval(rollIntervalRef.current);
+            if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+        };
+    }, [rows, cols, holdActive]);
+
+    useEffect(() => {
+        if (holdActive) {
+            if (intervalRef.current) clearTimeout(intervalRef.current);
+            return;
+        }
+        // Calculate step duration
+        const baseStepMs = 60_000 / bpm;
+        // For swing: even steps normal, odd steps delayed by swing
+        function getStepDuration(stepIdx: number) {
+            return stepIdx % 2 === 0 ? baseStepMs * (1 - swingRatio * 0.5) : baseStepMs * (1 + swingRatio * 0.5);
+        }
+        let stepIdx = currentStep;
+        function scheduleNextStep() {
+            setCurrentStep((prev) => (prev + 1) % (rows * cols));
+            stepIdx = (stepIdx + 1) % (rows * cols);
+            const nextDuration = getStepDuration(stepIdx);
+            if (intervalRef.current) clearTimeout(intervalRef.current);
+            intervalRef.current = setTimeout(scheduleNextStep, nextDuration);
+        }
+        if (intervalRef.current) clearTimeout(intervalRef.current);
+        intervalRef.current = setTimeout(scheduleNextStep, getStepDuration(stepIdx));
+        return () => {
+            if (intervalRef.current) clearTimeout(intervalRef.current);
+        };
+    }, [playing, bpm, rows, cols, currentStep, holdActive, steps, swingRatio]);
+
+    useEffect(() => {
+        // Randomize swing ratio on mount
+        setSwingRatio(0.55 + Math.random() * 0.2); // 0.55–0.75
+    }, []);
 
     function cycleStep(r: number, c: number) {
         setSteps((prev) => {
@@ -174,22 +236,58 @@ export function DrumSequencer() {
 
 // Helper to generate an interesting pattern
 function generateInterestingPattern(rows: number, cols: number) {
-    // Example: polyrhythmic/symmetric pattern
-    // - Bass drum on every 4th step
-    // - Snare on every 6th step
-    // - Toms on alternating steps
-    // - Hats on every 3rd step
-    const pattern = Array.from({ length: rows }, () => Array(cols).fill(0));
+    // Curated 2x8 patterns: 0=off, 1=bass, 2=snare, 3=low tom, 4=high tom, 5=hat
+    const patterns = [
+        // Rock/Pop (Kick on 1, 5; Snare on 3, 7; Hats every step)
+        [
+            [1, 5, 0, 2, 1, 5, 0, 2],
+            [5, 0, 5, 0, 5, 0, 5, 0],
+        ],
+        // Funk (Kick on 1, 4, 7; Snare on 3, 7; Hats every step)
+        [
+            [1, 5, 0, 2, 1, 5, 0, 2],
+            [5, 0, 5, 0, 5, 1, 5, 0],
+        ],
+        // Disco (Kick on every beat, Snare on 3, 7, Hats every step)
+        [
+            [1, 5, 1, 2, 1, 5, 1, 2],
+            [5, 0, 5, 0, 5, 0, 5, 0],
+        ],
+        // Hip-Hop (Sparse hats, syncopated kick/snare)
+        [
+            [1, 0, 0, 2, 0, 1, 0, 2],
+            [0, 5, 0, 0, 5, 0, 5, 0],
+        ],
+        // Reggaeton/Dembow
+        [
+            [1, 0, 2, 0, 1, 0, 2, 0],
+            [5, 0, 5, 0, 5, 0, 5, 0],
+        ],
+        // Four-on-the-floor (Kick every step, snare on 3, 7, hats every step)
+        [
+            [1, 5, 1, 2, 1, 5, 1, 2],
+            [5, 0, 5, 0, 5, 0, 5, 0],
+        ],
+        // Tom groove (Toms on 3, 4, 7, 8)
+        [
+            [1, 3, 3, 4, 1, 3, 3, 4],
+            [5, 0, 5, 0, 5, 0, 5, 0],
+        ],
+        // Syncopated (Kick/snare interplay, hats on offbeats)
+        [
+            [1, 0, 2, 5, 1, 0, 2, 5],
+            [5, 1, 5, 0, 5, 1, 5, 0],
+        ],
+    ];
+    // Pick a random pattern
+    const base = patterns[Math.floor(Math.random() * patterns.length)].map(row => [...row]);
+    // Optionally, add a little randomization: 10% chance to add a hat or tom to a random cell
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-            const idx = r * cols + c;
-            if (idx % 4 === 0) pattern[r][c] = 1; // bass
-            else if (idx % 6 === 2) pattern[r][c] = 2; // snare
-            else if (idx % 8 === 3) pattern[r][c] = 3; // low tom
-            else if (idx % 8 === 7) pattern[r][c] = 4; // high tom
-            else if (idx % 3 === 1) pattern[r][c] = 5; // hat
-            else pattern[r][c] = 0;
+            if (Math.random() < 0.10 && base[r][c] === 0) {
+                base[r][c] = Math.random() < 0.5 ? 5 : (Math.random() < 0.5 ? 3 : 4);
+            }
         }
     }
-    return pattern;
+    return base;
 } 

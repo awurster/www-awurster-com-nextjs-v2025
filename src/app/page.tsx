@@ -5,7 +5,7 @@ import { FaEnvelope, FaLinkedin, FaGithub } from 'react-icons/fa';
 import { FidgetSpinner } from "./components/FidgetSpinner";
 import { RectFidgetSpinner } from "./components/RectFidgetSpinner";
 import { DrumSequencer } from "./components/DrumSequencer";
-import { playToneHold, stopToneHold, playHarmonium } from "./music";
+import { playToneHold, stopToneHold, playHarmonium, generateRandomJazzChord, playAmbientBass, playAmbientBassVariation1, playAmbientBassVariation2, playAmbientPad } from "./music";
 
 const about = [
   {
@@ -212,26 +212,56 @@ function FidgetSpinners() {
   const keyMap = useMemo(() => ['q', 'w', 'e', 'r', 't', 's', 'd'], []);
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [rectActive, setRectActive] = useState<'bass' | 'pad' | null>(null);
+  const keyPressTimestamps = useRef<{ [key: string]: number[] }>({});
+  const octaveShiftNext = useRef<{ [key: string]: number }>({}); // -1 for down, +1 for up
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const key = e.key.toLowerCase();
       if (keyMap.includes(key)) {
-        if (['q', 'w', 'e', 'r', 't'].includes(key)) {
+        // --- Octave shift logic: 3 presses within 4s triggers, randomly up or down ---
+        const now = Date.now();
+        if (!keyPressTimestamps.current[key]) keyPressTimestamps.current[key] = [];
+        keyPressTimestamps.current[key].push(now);
+        // Keep only last 3
+        keyPressTimestamps.current[key] = keyPressTimestamps.current[key].filter(t => now - t < 4000);
+        if (
+          keyPressTimestamps.current[key].length === 3
+        ) {
+          octaveShiftNext.current[key] = Math.random() < 0.5 ? -1 : 1; // -1 = down, +1 = up
+          keyPressTimestamps.current[key] = [];
+        }
+        // ---
+        if (["q", "w", "e", "r", "t"].includes(key)) {
           const idx = keyMap.indexOf(key);
+          const octaveShift = octaveShiftNext.current[key] || 0;
+          playToneHold(tones[idx] * (octaveShift === -1 ? 0.5 : octaveShift === 1 ? 2 : 1), idx);
+          if (octaveShift) octaveShiftNext.current[key] = 0;
           setActiveIdx(idx);
-          playToneHold(tones[idx], idx);
-        } else if (key === 's') {
-          setRectActive('bass');
-        } else if (key === 'd') {
-          setRectActive('pad');
+        } else if (key === "s") {
+          const octaveShift = octaveShiftNext.current[key] || 0;
+          if (e.getModifierState("Shift") && e.code === "ShiftLeft") {
+            playAmbientBassVariation1(octaveShift === -1);
+          } else if (e.getModifierState("Shift") && e.code === "ShiftRight") {
+            playAmbientBassVariation2(octaveShift === -1);
+          } else {
+            playAmbientBass(octaveShift === -1);
+          }
+          if (octaveShift) octaveShiftNext.current[key] = 0;
+          setRectActive("bass");
+        } else if (key === "d") {
+          const octaveShift = octaveShiftNext.current[key] || 0;
+          const third = e.getModifierState("Shift");
+          playAmbientPad(octaveShift === -1, third);
+          if (octaveShift) octaveShiftNext.current[key] = 0;
+          setRectActive("pad");
         }
       }
     }
     function handleKeyUp(e: KeyboardEvent) {
       const key = e.key.toLowerCase();
       if (keyMap.includes(key)) {
-        if (['q', 'w', 'e', 'r', 't'].includes(key)) {
+        if (["q", "w", "e", "r", "t"].includes(key)) {
           const idx = keyMap.indexOf(key);
           setActiveIdx(null);
           stopToneHold(idx);
@@ -276,17 +306,33 @@ export default function Home() {
   const [openPanel, setOpenPanel] = useState<null | 'email' | 'linkedin' | 'github'>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
+  // --- Harmonium jazz chords easter egg ---
+  const jazzChordsRef = useRef<number[][]>([]);
+  useEffect(() => {
+    // Generate 4 random jazz chords on mount
+    jazzChordsRef.current = [
+      generateRandomJazzChord(),
+      generateRandomJazzChord(),
+      generateRandomJazzChord(),
+      generateRandomJazzChord(),
+    ];
+  }, []);
+
   // Custom onClick for HeroBlocks to play harmonium if About is not open
   const handleHeroClick = () => {
     if (!showAbout) playHarmonium();
     setShowAbout((v) => !v);
   };
 
-  // Add keydown listener for '3' to trigger harmonium
+  // Add keydown listener for '1'-'5' to trigger harmonium chords
   useEffect(() => {
     function handleHarmoniumKey(e: KeyboardEvent) {
-      if (e.key === '3' && !e.repeat) {
-        playHarmonium();
+      if (e.repeat) return;
+      if (e.key === '3') {
+        playHarmonium(); // default C major
+      } else if (["1", "2", "4", "5"].includes(e.key)) {
+        const idx = { "1": 0, "2": 1, "4": 2, "5": 3 }[e.key as "1" | "2" | "4" | "5"];
+        playHarmonium(jazzChordsRef.current[idx]);
       }
     }
     window.addEventListener('keydown', handleHarmoniumKey);

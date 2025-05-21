@@ -58,13 +58,16 @@ export function stopToneHold(idx: number) {
     delete activeNotes[idx];
 }
 
-export function playAmbientBass() {
+export function playAmbientBass(octaveDown: boolean = false, fifth: boolean = false) {
     if (typeof window === 'undefined') return;
     const ctx = getAudioContext();
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = 'triangle';
-    o.frequency.value = 65.41; // C2 (low bass)
+    let freq = 65.41;
+    if (octaveDown) freq /= 2;
+    if (fifth) freq *= 1.5;
+    o.frequency.value = freq; // C2 or C1, or 5th
     g.gain.setValueAtTime(0.12, ctx.currentTime);
     o.connect(g);
     g.connect(ctx.destination);
@@ -74,14 +77,15 @@ export function playAmbientBass() {
     o.onended = () => ctx.close();
 }
 
-export function playAmbientPad() {
+export function playAmbientPad(octaveDown: boolean = false, third: boolean = false) {
     if (typeof window === 'undefined') return;
     const ctx = getAudioContext();
-    const baseFreq = 261.63; // C4, lower than before
-    const detunes = [-12, -7, 0, 7, 12]; // in cents, for a lush pad
+    let baseFreq = octaveDown ? 261.63 / 2 : 261.63; // C4 or C3
+    if (third) baseFreq *= 1.26; // major 3rd
+    const detunes = [-12, -7, 0, 7, 12];
     const oscillators: OscillatorNode[] = [];
     const g = ctx.createGain();
-    g.gain.setValueAtTime(0.045, ctx.currentTime); // softer pad
+    g.gain.setValueAtTime(0.045, ctx.currentTime);
     g.connect(ctx.destination);
     detunes.forEach((cents) => {
         const o = ctx.createOscillator();
@@ -283,19 +287,24 @@ export function playDrumHat(randomize: boolean = false) {
     noise.onended = () => ctx.close();
 }
 
-export function playHarmonium() {
+export function playHarmonium(chord?: number[]) {
     if (typeof window === 'undefined') return;
     const ctx = getAudioContext();
     if (ctx.state === 'suspended') ctx.resume();
-    // Rich C major chord: C3, C4, E4, G4, C5
-    const freqs = [130.81, 261.63, 329.63, 392.00, 523.25]; // C3, C4, E4, G4, C5
+    // Use provided chord or default to C major
+    const freqs = chord && chord.length ? chord : [130.81, 261.63, 329.63, 392.00, 523.25];
     const oscillators: OscillatorNode[] = [];
     const g = ctx.createGain();
-    // Add a strong high-pass filter for airiness
+    // Add a much stronger high-pass filter for deep/rich sound
     const hp = ctx.createBiquadFilter();
     hp.type = 'highpass';
-    hp.frequency.value = 700; // more high-pass for lighter sound
-    hp.Q.value = 1.2;
+    hp.frequency.value = 1200; // was 700, now higher for more depth
+    hp.Q.value = 2.2; // was 1.2, now more resonance
+    // Optionally, add a second HP filter for extra depth
+    const hp2 = ctx.createBiquadFilter();
+    hp2.type = 'highpass';
+    hp2.frequency.value = 400;
+    hp2.Q.value = 1.5;
     // Keep the lowpass for warmth, but after the highpass
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
@@ -303,41 +312,185 @@ export function playHarmonium() {
     lp.Q.value = 0.9;
     g.gain.setValueAtTime(0, ctx.currentTime);
     g.connect(hp);
-    hp.connect(lp);
+    hp.connect(hp2);
+    hp2.connect(lp);
     lp.connect(ctx.destination);
+    // --- Unison and detune ---
+    const detunes = [0, -7, 7]; // cents
+    // ---
+    // --- LFO for filter sweeps ---
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.18 + Math.random() * 0.12; // 0.18–0.3 Hz (slow)
+    const lfoGainLP = ctx.createGain();
+    lfoGainLP.gain.value = 400; // sweep range for lowpass
+    lfo.connect(lfoGainLP);
+    lfoGainLP.connect(lp.frequency);
+    const lfoGainHP = ctx.createGain();
+    lfoGainHP.gain.value = 200; // sweep range for highpass
+    lfo.connect(lfoGainHP);
+    lfoGainHP.connect(hp.frequency);
+    // Add LFO to second HP for subtle movement
+    const lfoGainHP2 = ctx.createGain();
+    lfoGainHP2.gain.value = 100;
+    lfo.connect(lfoGainHP2);
+    lfoGainHP2.connect(hp2.frequency);
+    lfo.start();
+    // ---
+    // --- LFO for gentle pulsating gain ---
+    const lfoPulse = ctx.createOscillator();
+    lfoPulse.type = 'sine';
+    lfoPulse.frequency.value = 0.5 + Math.random() * 0.2; // 0.5–0.7 Hz
+    const lfoPulseGain = ctx.createGain();
+    lfoPulseGain.gain.value = 0.006; // subtle
+    lfoPulse.connect(lfoPulseGain);
+    lfoPulseGain.connect(g.gain);
+    lfoPulse.start();
+    // ---
     freqs.forEach((freq) => {
-        // Blend triangle and sine for a soft reed/oboe-like sound
-        const o1 = ctx.createOscillator();
-        o1.type = 'triangle';
-        o1.frequency.value = freq;
-        o1.connect(g);
-        o1.start();
-        // Stop after release tail
-        o1.stop(ctx.currentTime + 3.2);
-        oscillators.push(o1);
-        const o2 = ctx.createOscillator();
-        o2.type = 'sine';
-        o2.frequency.value = freq;
-        o2.connect(g);
-        o2.start();
-        o2.stop(ctx.currentTime + 3.2);
-        oscillators.push(o2);
+        detunes.forEach((cents) => {
+            // Blend triangle and sine for a soft reed/oboe-like sound
+            const o1 = ctx.createOscillator();
+            o1.type = 'triangle';
+            o1.frequency.value = freq;
+            o1.detune.value = cents;
+            o1.connect(g);
+            o1.start();
+            o1.stop(ctx.currentTime + 3.2);
+            oscillators.push(o1);
+            const o2 = ctx.createOscillator();
+            o2.type = 'sine';
+            o2.frequency.value = freq;
+            o2.detune.value = cents;
+            o2.connect(g);
+            o2.start();
+            o2.stop(ctx.currentTime + 3.2);
+            oscillators.push(o2);
+        });
     });
     // Soft attack and long exponential release
-    const attack = 0.175; // 50% shorter than 0.35
-    const sustain = 2.025; // keep sustain similar
-    const release = 2.0; // 2s longer than before
+    const attack = 0.175;
+    const sustain = 2.025;
+    const release = 2.0;
     const total = attack + sustain + release;
     g.gain.linearRampToValueAtTime(0.012, ctx.currentTime + attack);
     g.gain.linearRampToValueAtTime(0.012, ctx.currentTime + attack + sustain);
-    // Exponential ramp for smooth click-free release
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + attack + sustain + release - 0.2);
     g.gain.linearRampToValueAtTime(0, ctx.currentTime + total);
     setTimeout(() => {
         oscillators.forEach(o => o.disconnect());
         g.disconnect();
         hp.disconnect();
+        hp2.disconnect();
         lp.disconnect();
+        lfo.disconnect();
+        lfoGainLP.disconnect();
+        lfoGainHP.disconnect();
+        lfoGainHP2.disconnect();
+        lfoPulse.disconnect();
+        lfoPulseGain.disconnect();
         ctx.close();
     }, (total + 0.05) * 1000);
+}
+
+// Helper to generate a random jazzy chord (5-8 notes) based on C scales
+export function generateRandomJazzChord(): number[] {
+    // C major scale: C D E F G A B
+    const scale = [
+        130.81, // C3
+        146.83, // D3
+        164.81, // E3
+        174.61, // F3
+        196.00, // G3
+        220.00, // A3
+        246.94, // B3
+        261.63, // C4
+        293.66, // D4
+        329.63, // E4
+        349.23, // F4
+        392.00, // G4
+        440.00, // A4
+        493.88, // B4
+        523.25, // C5
+        587.33, // D5
+        659.25, // E5
+        698.46, // F5
+        783.99, // G5
+        880.00, // A5
+        987.77, // B5
+        1046.50 // C6
+    ];
+    // Chord formulas (as scale degrees)
+    const chordTypes = [
+        [0, 2, 4, 6, 9, 11], // Cmaj13
+        [1, 3, 5, 7, 10, 12], // Dm13
+        [4, 6, 8, 10, 13, 15], // G13
+        [3, 5, 7, 9, 12, 14], // Fmaj9
+        [0, 2, 5, 7, 9, 11, 14], // Cmaj9(13)
+        [2, 4, 6, 8, 11, 13, 16], // Em11
+        [1, 3, 6, 8, 10, 12, 15], // Dm11
+        [0, 4, 7, 9, 12, 16], // Cmaj7(9,13)
+    ];
+    // Pick a random chord type
+    const type = chordTypes[Math.floor(Math.random() * chordTypes.length)];
+    // Pick a random root octave offset (0 or 1)
+    const octave = Math.random() > 0.5 ? 0 : 7;
+    // Build the chord
+    const chord = type.map(i => scale[(i + octave) % scale.length]);
+    // Add a few random color tones
+    while (chord.length < 8 && Math.random() > 0.5) {
+        const extra = scale[Math.floor(Math.random() * scale.length)];
+        if (!chord.includes(extra)) chord.push(extra);
+    }
+    // Sort for left/right hand feel: low, mid, high
+    chord.sort((a, b) => a - b);
+    return chord;
+}
+
+export function playAmbientBassVariation1(octaveDown: boolean = false) {
+    if (typeof window === 'undefined') return;
+    const ctx = getAudioContext();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    o.type = 'triangle';
+    o.frequency.value = octaveDown ? 98 / 2 : 98; // G2 or G1
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(1800, ctx.currentTime);
+    f.frequency.linearRampToValueAtTime(600, ctx.currentTime + 1.2);
+    g.gain.setValueAtTime(0.13, ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0, ctx.currentTime + 2.5);
+    o.connect(f);
+    f.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 2.6);
+    o.onended = () => ctx.close();
+}
+
+export function playAmbientBassVariation2(octaveDown: boolean = false) {
+    if (typeof window === 'undefined') return;
+    const ctx = getAudioContext();
+    const o1 = ctx.createOscillator();
+    const o2 = ctx.createOscillator();
+    const g = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    o1.type = 'sine';
+    o2.type = 'sine';
+    o1.frequency.value = octaveDown ? 49 / 2 : 49; // A1 or A0
+    o2.frequency.value = octaveDown ? 49.5 / 2 : 49.5;
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(900, ctx.currentTime);
+    f.frequency.linearRampToValueAtTime(200, ctx.currentTime + 4.5);
+    g.gain.setValueAtTime(0.18, ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0, ctx.currentTime + 5.5);
+    o1.connect(f);
+    o2.connect(f);
+    f.connect(g);
+    g.connect(ctx.destination);
+    o1.start();
+    o2.start();
+    o1.stop(ctx.currentTime + 5.6);
+    o2.stop(ctx.currentTime + 5.6);
+    o1.onended = () => ctx.close();
 } 
