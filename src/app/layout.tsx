@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 function DecoBackground() {
-  // SVG pattern with soft glow, very dark and subtle
+  // SVG pattern inspired by deco-geometric-glow, with dark lines and subtle glow
   return (
     <div
       aria-hidden="true"
@@ -34,11 +34,22 @@ function DecoBackground() {
       }}
     >
       <svg width="100%" height="100%" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ position: "absolute", inset: 0 }}>
-        <g opacity="0.12">
+        <g opacity="0.16">
           <rect x="0" y="0" width="1920" height="1080" fill="none" />
           <g filter="url(#glow)">
-            <path d="M0 0L1920 1080M1920 0L0 1080M960 0V1080M0 540H1920" stroke="#23232a" strokeWidth="2" />
+            {/* Diagonal lines */}
+            <path d="M0 0L1920 1080M1920 0L0 1080" stroke="#23232a" strokeWidth="2" />
+            {/* Central cross */}
+            <path d="M960 0V1080M0 540H1920" stroke="#23232a" strokeWidth="2" />
+            {/* Concentric circles */}
             <circle cx="960" cy="540" r="320" stroke="#23232a" strokeWidth="2" />
+            <circle cx="960" cy="540" r="480" stroke="#23232a" strokeWidth="1.5" />
+            <circle cx="960" cy="540" r="640" stroke="#23232a" strokeWidth="1" />
+            {/* Radiating lines */}
+            <path d="M480 540L1440 540" stroke="#23232a" strokeWidth="1" />
+            <path d="M960 160L960 920" stroke="#23232a" strokeWidth="1" />
+            <path d="M320 1080L1600 0" stroke="#23232a" strokeWidth="1" />
+            <path d="M1600 1080L320 0" stroke="#23232a" strokeWidth="1" />
           </g>
         </g>
         <defs>
