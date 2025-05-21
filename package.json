@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "npm prune && rm -rf node_modules package-lock.json && npm install && next build && npx @cloudflare/next-on-pages",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postbuild": "rm -rf .next/cache && find .next -type f -size +25M -exec echo 'ERROR: File exceeds 25MB: {}' \\; -exec false {} +"
   },
   "dependencies": {
     "next": "15.3.2",
@@ -15,11 +16,14 @@
     "react-icons": "^5.5.0"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.0.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.32.1",
+    "@typescript-eslint/parser": "^8.32.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "tailwindcss": "^4",
