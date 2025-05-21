@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import { FaEnvelope, FaLinkedin, FaGithub } from 'react-icons/fa';
 
 const about = [
@@ -463,6 +463,201 @@ function RectFidgetSpinner({ type, isActive = false, onKeyboardTrigger }: { type
   );
 }
 
+// --- Drum Sequencer ---
+const DRUM_COLORS = [
+  '#18181b', // off
+  '#d0e2d6', // bass drum (same as FIDGET_GLOW)
+  '#e2d6d0', // snare (lighter highlight)
+  '#d0d6e2', // hat (lighter highlight)
+  '#23232a', // off (cycle)
+];
+
+function DrumSequencer() {
+  const rows = 2;
+  const cols = 8;
+  const blockSize = 4; // 10% smaller than 4.4
+  const [steps, setSteps] = useState<number[][]>(Array.from({ length: rows }, () => Array(cols).fill(0)));
+  const [playing, setPlaying] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [bpm, setBpm] = useState(112); // Default BPM is now 112
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tapTimes = useRef<number[]>([]);
+  const tapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Play drum sound for a step
+  const playDrum = useCallback((row: number, type: number) => {
+    if (type === 1) playDrumKick();
+    else if (type === 2) playDrumSnare();
+    else if (type === 3) playDrumHat();
+  }, []);
+
+  // Sequencer loop: always cycle through all 16 steps (0-15)
+  useEffect(() => {
+    if (!playing) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
+    intervalRef.current = setInterval(() => {
+      setCurrentStep((prev) => (prev + 1) % (rows * cols));
+    }, (60_000 / bpm));
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [playing, bpm, rows, cols]);
+
+  // Play sounds on step change
+  useEffect(() => {
+    if (!playing) return;
+    // Map 0-15 to (row, col)
+    const r = Math.floor(currentStep / cols);
+    const c = currentStep % cols;
+    const type = steps[r][c];
+    if (type > 0 && type < 4) playDrum(r, type);
+  }, [currentStep, playing, steps, cols, playDrum]);
+
+  // Key handling: P for play/pause, Space for tap tempo
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key.toLowerCase() === 'p') {
+        setPlaying((p) => !p);
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        const now = Date.now();
+        if (tapTimeout.current) clearTimeout(tapTimeout.current);
+        tapTimes.current.push(now);
+        if (tapTimes.current.length > 1) {
+          // Only use last 6 taps for averaging
+          const times = tapTimes.current.slice(-6);
+          const intervals = times.slice(1).map((t, i) => t - times[i]);
+          const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+          if (intervals.length >= 1 && avg > 0) {
+            const newBpm = Math.round(60_000 / avg);
+            setBpm(Math.max(40, Math.min(300, newBpm)));
+          }
+        }
+        // Reset tap times after 2s idle
+        tapTimeout.current = setTimeout(() => {
+          tapTimes.current = [];
+        }, 2000);
+      }
+    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+
+  // Click or X on step: cycle state
+  function cycleStep(r: number, c: number) {
+    setSteps((prev) => {
+      const next = prev.map((row) => [...row]);
+      next[r][c] = (next[r][c] + 1) % 5;
+      return next;
+    });
+  }
+
+  // --- Drum sound synthesis ---
+  function playDrumKick() {
+    const ctx = getAudioContext();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(65.41, ctx.currentTime); // C2
+    o.frequency.exponentialRampToValueAtTime(32, ctx.currentTime + 0.12);
+    g.gain.setValueAtTime(0.22, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.19);
+    o.onended = () => ctx.close();
+  }
+  function playDrumSnare() {
+    const ctx = getAudioContext();
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.18, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      // 8-bit style: quantize to 16 levels
+      data[i] = (Math.random() * 2 - 1);
+      data[i] = Math.round(data[i] * 8) / 8;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.13, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    // Filter for snare
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 900;
+    noise.connect(f);
+    f.connect(g);
+    g.connect(ctx.destination);
+    noise.start();
+    noise.stop(ctx.currentTime + 0.18);
+    noise.onended = () => ctx.close();
+  }
+  function playDrumHat() {
+    const ctx = getAudioContext();
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1);
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.09, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+    // HP filter for soft hat
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 6000;
+    noise.connect(f);
+    f.connect(g);
+    g.connect(ctx.destination);
+    noise.start();
+    noise.stop(ctx.currentTime + 0.08);
+    noise.onended = () => ctx.close();
+  }
+
+  return (
+    <div className="w-full flex flex-col items-center justify-center gap-2 pb-10">
+      <div className="flex flex-row items-center justify-center gap-2">
+        {Array.from({ length: cols }).map((_, c) => (
+          <div key={c} className="flex flex-col gap-2">
+            {Array.from({ length: rows }).map((_, r) => {
+              // Map currentStep 0-15 to (row, col)
+              const stepIdx = r * cols + c;
+              const state = steps[r][c];
+              const isActive = playing && currentStep === stepIdx && state > 0 && state < 4;
+              const isSet = state > 0 && state < 4;
+              return (
+                <button
+                  key={r}
+                  className={`rounded-[2px] border border-[#23232a] transition-all duration-150 focus:outline-none ${isActive ? 'ring-4 ring-[#d0e2d6]/60 shadow-[0_0_12px_2px_#d0e2d6]' : ''}`}
+                  style={{
+                    width: blockSize * 8,
+                    height: blockSize * 8,
+                    background: isActive
+                      ? DRUM_COLORS[state]
+                      : isSet
+                        ? DRUM_COLORS[state] + 'cc' // lighter highlight
+                        : DRUM_COLORS[0],
+                    opacity: isSet ? 0.95 : 0.5,
+                    boxShadow: isActive ? `0 0 8px 2px ${DRUM_COLORS[state]}` : undefined,
+                  }}
+                  onClick={() => cycleStep(r, c)}
+                  tabIndex={0}
+                  aria-label={`Drum step ${c + 1}, row ${r + 1}`}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FidgetSpinners() {
   // 5 unique tones (C4, D4, E4, G4, A4)
   const tones = useMemo(() => [261.63, 293.66, 329.63, 392.00, 440.00], []);
@@ -526,6 +721,7 @@ function FidgetSpinners() {
         <RectFidgetSpinner type="bass" isActive={rectActive === 'bass'} onKeyboardTrigger={() => setRectActive('bass')} />
         <RectFidgetSpinner type="pad" isActive={rectActive === 'pad'} onKeyboardTrigger={() => setRectActive('pad')} />
       </div>
+      <DrumSequencer />
     </>
   );
 }
