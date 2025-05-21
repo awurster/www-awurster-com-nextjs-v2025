@@ -51,7 +51,7 @@ export function RectFidgetSpinner({ type, isActive = false, onKeyboardTrigger, m
     return (
         <button
             className={`transition-all duration-200 outline-none focus:outline-none rounded-[2px] shadow-lg ${mobile ? 'p-0' : 'p-2'} ${(active || isActive) ? 'ring-4 ring-[#d0e2d6]/40 shadow-[0_0_16px_4px_#d0e2d6]' : ''}`}
-            style={{ width, height, display: 'inline-block', background: 'none' }}
+            style={{ width, height, display: 'inline-block', background: '#18181b' }}
             onClick={handleClick}
             aria-label={type === 'bass' ? 'Ambient Bass Fidget' : 'Ambient Pad Fidget'}
         >
